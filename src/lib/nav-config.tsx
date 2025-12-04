@@ -9,6 +9,7 @@ import {
   Network,
   ShieldCheck,
   TerminalSquare,
+  FileCode,
 } from 'lucide-react';
 
 export type NavItem = {

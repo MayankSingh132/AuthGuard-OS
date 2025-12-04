@@ -12,7 +12,9 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
   ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
 } from "recharts"
@@ -34,6 +36,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
+import { ChartTooltipContent } from "@/components/ui/chart"
 
 const chartData = [
   { date: "3d ago", successful: 186, failed: 80 },
@@ -59,7 +62,7 @@ export default function DashboardPage() {
         description="An overview of authentication activity and system health."
       />
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
-        <Card>
+        <Card className="transition-all hover:shadow-lg hover:-translate-y-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
@@ -69,7 +72,7 @@ export default function DashboardPage() {
             <p className="text-xs text-muted-foreground">+20 since last month</p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="transition-all hover:shadow-lg hover:-translate-y-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Logins (24h)
@@ -83,7 +86,7 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="transition-all hover:shadow-lg hover:-translate-y-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
               Threats Detected (24h)
@@ -97,7 +100,7 @@ export default function DashboardPage() {
             </p>
           </CardContent>
         </Card>
-        <Card>
+        <Card className="transition-all hover:shadow-lg hover:-translate-y-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">MFA Enabled</CardTitle>
             <ShieldCheck className="h-4 w-4 text-primary" />
@@ -114,11 +117,12 @@ export default function DashboardPage() {
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>Login Attempts Overview</CardTitle>
+            <CardDescription>A visual breakdown of successful vs. failed logins over time.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             <ResponsiveContainer width="100%" height={350}>
               <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border) / 0.5)"/>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))"/>
                 <XAxis
                   dataKey="date"
                   stroke="hsl(var(--muted-foreground))"
@@ -133,14 +137,32 @@ export default function DashboardPage() {
                   axisLine={false}
                   tickFormatter={(value) => `${value}`}
                 />
+                <Tooltip
+                    cursor={{fill: "hsl(var(--accent))"}}
+                    content={<ChartTooltipContent indicator="dot" />}
+                />
+                <Legend content={({ payload }) => (
+                    <div className="flex justify-center space-x-4 pt-4">
+                        {payload?.map((entry, index) => (
+                            <div key={`item-${index}`} className="chart-legend">
+                                <div className="chart-legend-item">
+                                    <div className="chart-legend-color" style={{backgroundColor: entry.color}} />
+                                    <span>{entry.value}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )} />
                 <Bar
                   dataKey="successful"
+                  stackId="a"
                   fill="hsl(var(--primary))"
                   name="Successful"
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar
                   dataKey="failed"
+                  stackId="a"
                   fill="hsl(var(--destructive) / 0.5)"
                   name="Failed"
                   radius={[4, 4, 0, 0]}
@@ -184,8 +206,8 @@ export default function DashboardPage() {
                   </TableCell>
                   <TableCell>
                     <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                        log.status === "Success" ? "bg-green-500/10 text-green-500" 
-                        : "bg-red-500/10 text-red-500"
+                        log.status === "Success" ? "bg-green-500/10 text-green-700 dark:text-green-400" 
+                        : "bg-red-500/10 text-red-700 dark:text-red-400"
                     }`}>
                         {log.status}
                     </span>

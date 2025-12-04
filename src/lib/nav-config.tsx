@@ -9,7 +9,7 @@ import {
   Network,
   ShieldCheck,
   TerminalSquare,
-  FileCode,
+  Users,
 } from 'lucide-react';
 
 export type NavItem = {
@@ -23,6 +23,11 @@ export const navItems: NavItem[] = [
     title: 'Dashboard',
     href: '/dashboard',
     icon: <LayoutDashboard />,
+  },
+  {
+    title: 'Users',
+    href: '/users',
+    icon: <Users />,
   },
   {
     title: 'Architecture',

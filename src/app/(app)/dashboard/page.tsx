@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
-import { ChartTooltipContent } from "@/components/ui/chart"
+import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 
 const chartData = [
   { date: "3d ago", successful: 186, failed: 80 },
@@ -44,6 +44,17 @@ const chartData = [
   { date: "Yesterday", successful: 237, failed: 120 },
   { date: "Today", successful: 73, failed: 19 },
 ]
+
+const chartConfig = {
+  successful: {
+    label: "Successful",
+    color: "hsl(var(--chart-1))",
+  },
+  failed: {
+    label: "Failed",
+    color: "hsl(var(--destructive))",
+  },
+} satisfies ChartConfig
 
 const recentLogs = [
     { id: "log-001", user: "admin@os.local", status: "Success", type: "Password + OTP", ip: "192.168.1.10", time: "2m ago"},
@@ -120,7 +131,7 @@ export default function DashboardPage() {
             <CardDescription>A visual breakdown of successful vs. failed logins over time.</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
-            <ResponsiveContainer width="100%" height={350}>
+            <ChartContainer config={chartConfig} className="min-h-[350px] w-full">
               <BarChart data={chartData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))"/>
                 <XAxis
@@ -156,19 +167,19 @@ export default function DashboardPage() {
                 <Bar
                   dataKey="successful"
                   stackId="a"
-                  fill="hsl(var(--primary))"
+                  fill="var(--color-successful)"
                   name="Successful"
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar
                   dataKey="failed"
                   stackId="a"
-                  fill="hsl(var(--destructive) / 0.5)"
+                  fill="var(--color-failed)"
                   name="Failed"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
         <Card>
@@ -223,3 +234,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    

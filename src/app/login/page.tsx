@@ -57,22 +57,35 @@ export default function LoginPage() {
 
   async function onSubmit(values: LoginFormValues) {
     setIsSubmitting(true);
-    try {
-        initiateEmailSignIn(auth, values.email, values.password);
+    initiateEmailSignIn(
+      auth, 
+      values.email, 
+      values.password,
+      () => {
         toast({
             title: "Login Successful",
             description: "You will be redirected to the dashboard shortly.",
         });
-        // The useEffect will handle the redirect
-    } catch (error: any) {
+        // The useEffect will handle the redirect. No need to setIsSubmitting(false) on success.
+      },
+      (error) => {
         console.error(error);
+        
+        let description = "An unexpected error occurred.";
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+            description = "Invalid email or password. Please try again.";
+        } else {
+            description = error.message;
+        }
+
         toast({
             variant: "destructive",
             title: "Login Failed",
-            description: error.message || "An unexpected error occurred.",
+            description: description,
         });
         setIsSubmitting(false);
-    }
+      }
+    );
   }
   
   if (isUserLoading || (user && !user.isAnonymous)) {

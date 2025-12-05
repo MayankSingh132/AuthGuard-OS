@@ -1,6 +1,6 @@
 // A script to seed the Firestore database with some initial data.
 import { initializeApp } from 'firebase/app';
-import { getFirestore, collection, writeBatch } from 'firebase/firestore';
+import { getFirestore, collection, writeBatch, doc } from 'firebase/firestore';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 import { firebaseConfig } from '../firebase/config'; // Adjust the path as needed
 
@@ -41,10 +41,10 @@ async function seedDatabase() {
             const user = userCredential.user;
             console.log(`Created user: ${user.email} with uid: ${user.uid}`);
             
-            const usersRef = collection(db, "users");
-            const userDocRef = userCredential.user.uid;
+            const usersCollectionRef = collection(db, "users");
+            const userDocRef = doc(usersCollectionRef, userCredential.user.uid);
             
-            batch.set(doc(usersRef, userDocRef), {
+            batch.set(userDocRef, {
                 email: userData.email,
                 mfaEnabled: userData.mfaEnabled,
                 lastLogin: userData.lastLogin,
@@ -55,7 +55,8 @@ async function seedDatabase() {
             const logsRef = collection(db, "auth_logs");
             for(let i = 0; i < Math.floor(Math.random() * 5) + 1; i++) {
                 const randomLog = authLogs[Math.floor(Math.random() * authLogs.length)];
-                batch.add(logsRef, {
+                const logDocRef = doc(logsRef);
+                batch.set(logDocRef, {
                     ...randomLog,
                     userId: user.uid,
                     timestamp: new Date(new Date().getTime() - Math.random() * 1000 * 60 * 60 * 24 * 7).toISOString(),

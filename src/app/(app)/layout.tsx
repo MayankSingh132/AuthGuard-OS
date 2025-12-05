@@ -13,7 +13,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
@@ -52,7 +51,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </SidebarMenu>
           </SidebarContent>
         </Sidebar>
-        <SidebarInset>
+        <div className="flex flex-col md:ml-64">
           <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b bg-background/80 px-4 backdrop-blur-sm sm:px-6 md:hidden">
             <SidebarTrigger />
              <div className="flex items-center gap-2">
@@ -65,7 +64,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <main className="flex flex-1 flex-col p-4 sm:px-6 md:p-8">
             {children}
           </main>
-        </SidebarInset>
+        </div>
       </div>
     </SidebarProvider>
   );

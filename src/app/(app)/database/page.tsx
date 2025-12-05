@@ -1,3 +1,4 @@
+
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -17,7 +18,6 @@ import {
 
 const usersFields = [
   { field: "email", type: "string", desc: "User's primary email address." },
-  { field: "hashedPassword", type: "string", desc: "(Managed by Firebase Auth) Salted and hashed password." },
   { field: "mfaEnabled", type: "boolean", desc: "Flag indicating if MFA is active for the user." },
   { field: "mfaType", type: "string", desc: "'otp', 'email', or 'device_key'." },
   { field: "deviceKeys", type: "array[string]", desc: "List of registered device public keys." },
@@ -31,7 +31,7 @@ const authLogsFields = [
     { field: "methodUsed", type: "string", desc: "e.g., 'password_otp', 'device_key'." },
     { field: "ip", type: "string", desc: "IP address of the client." },
     { field: "status", type: "string", desc: "'success', 'failure', or 'threat_detected'." },
-    { field: "threatDetected", type: "string", desc: "Details of detected threat, e.g., 'buffer_overflow'." },
+    { field: "threatDetected", type: "boolean", desc: "Indicates if a threat was detected during the event." },
 ];
 
 const securityPoliciesFields = [
@@ -76,7 +76,7 @@ export default function DatabasePage() {
           <CardHeader>
             <CardTitle>users/{'{userId}'}</CardTitle>
             <CardDescription>
-              Stores user-specific information, including authentication details and MFA configuration.
+              Stores user-specific information, including authentication details and MFA configuration. The user's password is not stored here; it is managed by Firebase Authentication.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -88,7 +88,7 @@ export default function DatabasePage() {
           <CardHeader>
             <CardTitle>auth_logs/{'{logId}'}</CardTitle>
             <CardDescription>
-              A comprehensive log of all authentication attempts, successful or otherwise, for auditing and security analysis.
+              A comprehensive and immutable log of all authentication attempts, successful or otherwise, for auditing and security analysis.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -100,7 +100,7 @@ export default function DatabasePage() {
           <CardHeader>
             <CardTitle>security_policies/{'{policyId}'}</CardTitle>
             <CardDescription>
-              Defines system-wide security rules and configurations, such as rate limiting and MFA enforcement.
+              Defines system-wide security rules and configurations, such as rate limiting and MFA enforcement. These are typically managed by administrators.
             </CardDescription>
           </CardHeader>
           <CardContent>

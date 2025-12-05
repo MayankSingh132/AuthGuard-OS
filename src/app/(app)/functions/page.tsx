@@ -1,3 +1,4 @@
+
 import { PageHeader } from "@/components/page-header";
 import { CodeBlock } from "@/components/code-block";
 import {
@@ -17,18 +18,23 @@ import {
 const functions = [
   {
     name: "registerUser",
-    description: "Registers a new user in Firebase Authentication.",
+    description: "Registers a new user in Firebase Authentication and initializes their data in Firestore.",
     input: "email, password",
     output: "User UID or error.",
     code: `
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
+// Ensure admin is initialized
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
+
 export const registerUser = functions.https.onCall(async (data, context) => {
   const { email, password } = data;
 
   if (!email || !password || password.length < 6) {
-    throw new functions.https.HttpsError('invalid-argument', 'Valid email and password (min 6 chars) are required.');
+    throw new functions.https.HttpsError('invalid-argument', 'A valid email and a password of at least 6 characters are required.');
   }
 
   try {
@@ -43,47 +49,52 @@ export const registerUser = functions.https.onCall(async (data, context) => {
       mfaEnabled: false,
       failedAttempts: 0,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      lastLogin: null,
     });
 
     return { uid: userRecord.uid };
   } catch (error) {
-    throw new functions.https.HttpsError('internal', 'Error creating new user.');
+    console.error("Error creating new user:", error);
+    throw new functions.https.HttpsError('internal', 'An internal error occurred while creating the user.');
   }
 });
     `,
   },
   {
-    name: "verifyPassword",
-    description: "Verifies user credentials and handles MFA flow.",
-    input: "email, password",
-    output: "Success status, MFA requirement, or custom token.",
+    name: "verifyCredentials",
+    description: "Verifies user credentials on the client, checks MFA status, and returns a custom token if successful.",
+    input: "ID Token from client",
+    output: "Success status, MFA requirement, or custom session token.",
     code: `
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-// This is a conceptual example. Direct password verification is not done in Cloud Functions.
-// Instead, the client signs in with email/password, gets an ID token, and sends it here.
-export const verifyPassword = functions.https.onCall(async (data, context) => {
+// This is a conceptual example. The client signs in with email/password, 
+// gets an ID token, and sends that token to a function like this for verification.
+export const verifyUserAndGetSession = functions.https.onCall(async (data, context) => {
   if (!context.auth) {
-    throw new functions.https.HttpsError('unauthenticated', 'User must be authenticated.');
+    throw new functions.https.HttpsError('unauthenticated', 'The function must be called while authenticated.');
   }
 
   const uid = context.auth.uid;
-  const userDoc = await admin.firestore().collection('users').doc(uid).get();
+  const userDocRef = admin.firestore().collection('users').doc(uid);
+  const userDoc = await userDocRef.get();
   
   if (!userDoc.exists) {
-    throw new functions.https.HttpsError('not-found', 'User data not found.');
+    throw new functions.https.HttpsError('not-found', 'User data could not be found.');
   }
 
   const userData = userDoc.data();
-  await admin.firestore().collection('users').doc(uid).update({ failedAttempts: 0 });
+  // Reset failed login attempts upon successful primary auth
+  await userDocRef.update({ failedAttempts: 0, lastLogin: admin.firestore.FieldValue.serverTimestamp() });
 
   if (userData.mfaEnabled) {
-    // Logic to initiate MFA (e.g., send OTP)
+    // In a real scenario, you would trigger the specific MFA flow (e.g., send OTP)
+    // and wait for a second function call to validate it.
     return { status: 'mfa_required', mfaType: userData.mfaType };
   }
 
-  // If no MFA, generate custom token directly
+  // If no MFA is needed, create a custom session token directly.
   const customToken = await admin.auth().createCustomToken(uid);
   return { status: 'success', token: customToken };
 });
@@ -91,42 +102,53 @@ export const verifyPassword = functions.https.onCall(async (data, context) => {
   },
   {
     name: "sendOTP",
-    description: "Generates and sends an OTP to the user's registered device/email.",
+    description: "Generates and sends a One-Time Password (OTP) to the user's registered device or email.",
     input: "userId",
-    output: "Success message.",
+    output: "Success or error message.",
     code: `
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-// Assume a third-party service for sending OTPs, e.g., Twilio
+// Assume a third-party service for sending messages, like Twilio
 
-export const sendOTP = functions.https.onCall(async (data, context) => {
-  const { userId } = data;
+export const sendOtp = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  
+  const userId = context.auth.uid;
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
-  const expiry = admin.firestore.Timestamp.now().toMillis() + (10 * 60 * 1000); // 10 minutes
+  const expiry = Date.now() + (10 * 60 * 1000); // 10-minute expiry
 
+  // Save the hashed OTP and expiry to the user's document
   await admin.firestore().collection('users').doc(userId).update({
-    otp: otp,
+    otp: otp, // In production, you MUST hash the OTP
     otpExpiry: expiry
   });
 
-  // Send OTP via SMS or email (implementation omitted)
-  // await twilio.messages.create({...});
+  // Example: Send OTP via a messaging service (implementation details omitted)
+  // await twilio.messages.create({ to: userPhoneNumber, from: '...', body: \`Your code is \${otp}\` });
   
-  return { status: 'OTP sent' };
+  return { status: 'OTP has been sent.' };
 });
     `,
   },
   {
     name: "validateOTP",
-    description: "Validates the provided OTP.",
+    description: "Validates a One-Time Password (OTP) provided by the user and issues a session token on success.",
     input: "userId, otp",
     output: "Custom auth token or error.",
     code: `
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 
-export const validateOTP = functions.https.onCall(async (data, context) => {
-  const { userId, otp } = data;
+export const validateOtp = functions.https.onCall(async (data, context) => {
+  if (!context.auth) {
+    throw new functions.https.HttpsError('unauthenticated', 'Authentication is required.');
+  }
+  
+  const userId = context.auth.uid;
+  const { otp } = data;
+  
   const userRef = admin.firestore().collection('users').doc(userId);
   const userDoc = await userRef.get();
 
@@ -135,12 +157,13 @@ export const validateOTP = functions.https.onCall(async (data, context) => {
   }
 
   const userData = userDoc.data();
+  // In production, compare against a hashed OTP
   if (userData.otp !== otp || userData.otpExpiry < Date.now()) {
     await userRef.update({ failedAttempts: admin.firestore.FieldValue.increment(1) });
-    throw new functions.https.HttpsError('invalid-argument', 'Invalid or expired OTP.');
+    throw new functions.https.HttpsError('invalid-argument', 'The OTP is invalid or has expired.');
   }
 
-  // Clear OTP and generate custom token
+  // Clear the OTP and generate the final custom session token
   await userRef.update({ otp: null, otpExpiry: null });
   const customToken = await admin.auth().createCustomToken(userId);
   
@@ -149,46 +172,63 @@ export const validateOTP = functions.https.onCall(async (data, context) => {
     `,
   },
   {
-    name: "detectOverflowPayload",
-    description: "Detects potential buffer overflow attacks by checking payload size.",
+    name: "detectOverflow",
+    description: "A utility function to detect potential buffer overflow attacks by checking the size of an input payload.",
     input: "payload (string)",
     output: "Boolean indicating if an overflow is suspected.",
     code: `
-const MAX_PAYLOAD_SIZE = 1024; // 1KB
+const MAX_PAYLOAD_SIZE_BYTES = 4096; // 4KB as a safe limit for typical inputs
 
+/**
+ * Checks if a string payload exceeds a maximum byte length.
+ * @param {string} payload The string to inspect.
+ * @returns {boolean} True if the payload is too large, false otherwise.
+ */
 export function detectOverflowPayload(payload: string): boolean {
-  if (typeof payload !== 'string') return false;
+  if (typeof payload !== 'string') {
+    return false;
+  }
   
-  // Check byte length, which is more accurate for multi-byte characters
+  // Use TextEncoder to get the actual byte length of the string, accounting for multi-byte characters.
   const byteLength = new TextEncoder().encode(payload).length;
   
-  if (byteLength > MAX_PAYLOAD_SIZE) {
-    console.warn(\`Potential overflow detected. Payload size: \${byteLength} bytes.\`);
+  if (byteLength > MAX_PAYLOAD_SIZE_BYTES) {
+    console.warn(\`Potential overflow detected. Payload size (\${byteLength} bytes) exceeds the limit of \${MAX_PAYLOAD_SIZE_BYTES} bytes.\`);
     return true;
   }
+
   return false;
 }
     `,
   },
   {
     name: "detectTrapdoor",
-    description: "Scans input for common trapdoor/backdoor signatures.",
+    description: "Scans an input string for common trapdoor or backdoor signatures to prevent command injection.",
     input: "inputString (string)",
-    output: "Boolean indicating if a trapdoor is suspected.",
+    output: "Boolean indicating if a trapdoor pattern is suspected.",
     code: `
+// A list of Regex patterns to detect common injection/trapdoor attempts.
 const trapdoorPatterns = [
-  /\\b(exec|shell_exec|system|passthru|eval)\\b/i, // Command execution
-  /\\b(SELECT\\s+\\*\\s+FROM\\s+users)\\b/i, // Common SQLi
-  /\\$\\w+\\s*=\\s*\\$_REQUEST/i, // PHP-like variable assignment from request
-  /` + "`(.*?)`" + `/ // Backtick command execution
+  /\\b(exec|shell_exec|system|passthru|eval)\\b/i,          // Command execution
+  /\\b(SELECT\\s+.+\\s+FROM\\s+.+)\\b/i,                    // Basic SQL Injection
+  /<script\\b[^>]*>.*?</script>/i,                         // Cross-Site Scripting (XSS)
+  /\\$\\w+\\s*=\\s*\\$_(REQUEST|GET|POST)/i,                 // PHP-like remote code execution
+  /` + "`(.*?)`" + `/                                          // Backtick command execution
 ];
 
+/**
+ * Scans a string for known malicious patterns.
+ * @param {string} inputString The string to scan.
+ * @returns {boolean} True if a suspicious pattern is found.
+ */
 export function detectTrapdoor(inputString: string): boolean {
-  if (typeof inputString !== 'string') return false;
+  if (typeof inputString !== 'string') {
+    return false;
+  }
 
   for (const pattern of trapdoorPatterns) {
     if (pattern.test(inputString)) {
-      console.warn(\`Potential trapdoor signature found: \${pattern.source}\`);
+      console.warn(\`Potential trapdoor signature found matching: \${pattern.source}\`);
       return true;
     }
   }
@@ -203,7 +243,7 @@ export default function FunctionsPage() {
     <div className="space-y-8">
       <PageHeader
         title="Cloud Functions"
-        description="Backend logic for handling authentication, security, and MFA."
+        description="The server-side logic that powers AuthGuard OS, handling user registration, MFA, and security checks."
       />
 
       <Tabs defaultValue={functions[0].name} className="w-full">

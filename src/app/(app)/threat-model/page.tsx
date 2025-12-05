@@ -1,3 +1,4 @@
+
 import { PageHeader } from "@/components/page-header";
 import {
   Table,
@@ -7,33 +8,38 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 
 const threats = [
   {
-    threat: "Buffer Overflow Attacks",
-    description: "An attacker sends an oversized payload to an input field, hoping to overwrite adjacent memory and execute arbitrary code.",
-    mitigation: "All inputs are validated for size on the backend (Cloud Functions) before processing. Payloads exceeding a safe threshold (e.g., 1KB) are immediately rejected. The 'detectOverflowPayload()' function demonstrates this.",
-  },
-  {
-    threat: "Trapdoors / Backdoors",
-    description: "Hidden entry points or malicious commands embedded in input strings that bypass normal authentication.",
-    mitigation: "Inputs are sanitized and scanned for known malicious patterns (e.g., SQL keywords, shell commands). The 'detectTrapdoor()' function provides a basic string-matching defense layer.",
-  },
-  {
-    threat: "Brute-Force Login Attempts",
-    description: "An attacker repeatedly tries different passwords for a known username.",
-    mitigation: "Implement rate-limiting on login attempts. After a set number of consecutive failures (e.g., 5), the account is temporarily locked. This is tracked by the 'failedAttempts' field in the 'users' collection.",
+    threat: "Credential Stuffing & Brute-Force",
+    description: "Attackers use stolen credentials from other breaches or automated scripts to guess passwords and gain unauthorized access.",
+    mitigation: "Firebase Authentication has built-in protection against this. Additionally, we track 'failedAttempts' in user documents to implement custom account lockout policies via Cloud Functions.",
   },
   {
     threat: "Session Hijacking",
-    description: "An attacker steals a user's valid session token to gain unauthorized access.",
-    mitigation: "Use short-lived custom authentication tokens. Enforce HTTPS for all communication. Bind session tokens to the client's IP address where possible.",
+    description: "An attacker steals a user's valid session cookie or token to impersonate them without needing credentials.",
+    mitigation: "We use short-lived ID tokens (refreshed automatically and securely by the Firebase SDK) and enforce HTTPS across the entire application. Custom session tokens can be revoked on the server-side if a compromise is suspected.",
   },
   {
-    threat: "Token Replay Attacks",
-    description: "An attacker intercepts a token and reuses it to authenticate as the user.",
-    mitigation: "Implement nonce (number used once) mechanisms. Timestamps within tokens ensure they are only valid for a short period. Once a token is used or expired, it is rejected.",
+    threat: "Insecure Direct Object Reference (IDOR)",
+    description: "A user manipulates an identifier (e.g., a URL parameter) to access data belonging to another user.",
+    mitigation: "Our Firestore Security Rules are the primary defense. Rules like 'allow read, update: if request.auth.uid == userId;' ensure that a user can only ever access documents that match their own authenticated UID.",
+  },
+  {
+    threat: "Data Eavesdropping",
+    description: "An attacker intercepts network traffic to read sensitive data like passwords or personally identifiable information (PII).",
+    mitigation: "All communication between the client and Firebase services is automatically encrypted using Transport Layer Security (TLS). There is no unencrypted traffic.",
+  },
+  {
+    threat: "Cross-Site Scripting (XSS)",
+    description: "An attacker injects malicious scripts into the web page, which then execute in the browsers of other users.",
+    mitigation: "React and Next.js provide automatic output encoding for content rendered in JSX, which prevents script injection. All user-generated content should be properly sanitized if it is ever rendered as raw HTML.",
+  },
+  {
+    threat: "Denial of Service (DoS) on Cloud Functions",
+    description: "An attacker floods a callable Cloud Function with requests, causing it to scale excessively and incur high costs.",
+    mitigation: "Firebase provides App Check, which can be configured to ensure that requests to Cloud Functions only come from your legitimate application, blocking unauthorized clients and scripts.",
   },
 ];
 
@@ -45,6 +51,10 @@ export default function ThreatModelPage() {
         description="An analysis of potential security vulnerabilities and the strategies in place to counter them."
       />
       <Card>
+        <CardHeader>
+            <CardTitle>Common Vulnerabilities</CardTitle>
+            <CardDescription>A breakdown of threats and the corresponding defense mechanisms built into AuthGuard OS.</CardDescription>
+        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>

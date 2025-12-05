@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -81,6 +82,12 @@ export default function DashboardPage() {
   const { data: recentLogs, isLoading: isLoadingLogs } = useCollection(logsQuery);
   const { data: users, isLoading: isLoadingUsers } = useCollection(usersQuery);
 
+  const mfaEnabledPercentage = React.useMemo(() => {
+    if (!users || users.length === 0) return 0;
+    const mfaEnabledCount = users.filter(u => u.mfaEnabled).length;
+    return Math.round((mfaEnabledCount / users.length) * 100);
+  }, [users]);
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="relative isolate overflow-hidden rounded-none border-b bg-card shadow-sm">
@@ -146,7 +153,7 @@ export default function DashboardPage() {
               <ShieldCheck className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-            {isLoadingUsers ? <Skeleton className="h-8 w-20" /> : <div className="text-2xl font-bold">{Math.round(((users?.filter(u => u.mfaEnabled).length || 0) / (users?.length || 1)) * 100)}%</div>}
+            {isLoadingUsers ? <Skeleton className="h-8 w-20" /> : <div className="text-2xl font-bold">{mfaEnabledPercentage}%</div>}
               <p className="text-xs text-muted-foreground">
                 4% increase from last month
               </p>

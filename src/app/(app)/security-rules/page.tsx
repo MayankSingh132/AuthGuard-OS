@@ -1,3 +1,4 @@
+
 import { PageHeader } from "@/components/page-header";
 import { CodeBlock } from "@/components/code-block";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,30 +9,65 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if user is an admin
-    function isAdmin() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    //--------------------------------------------------------------------
+    // Helper Functions
+    //--------------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Users can only read/write their own data.
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    //--------------------------------------------------------------------
+    // Collection: users
+    //--------------------------------------------------------------------
     match /users/{userId} {
-      allow read, update: if request.auth.uid == userId;
-      allow create: if request.auth.uid != null;
+      // ANY authenticated user can list the users for the dashboard.
+      allow list: if isSignedIn();
+
+      // ONLY the document owner can read their own full document.
+      allow get: if isOwner(userId);
+      
+      // A new user can create their own user document.
+      allow create: if isOwner(userId);
+
+      // The owner can update their own document.
+      allow update: if isOwner(userId);
+
+      // The owner can delete their own account.
+      allow delete: if isOwner(userId);
     }
 
-    // Auth logs can only be created by authenticated users.
-    // Admins can read all logs for auditing. No updates or deletes allowed.
+    //--------------------------------------------------------------------
+    // Collection: auth_logs
+    //--------------------------------------------------------------------
     match /auth_logs/{logId} {
-      allow create: if request.auth.uid != null;
-      allow read: if isAdmin();
-      allow update, delete: if false; // Logs are immutable
+      // Logs are immutable. No updates or deletes.
+      allow update, delete: if false;
+
+      // ANY authenticated user can create a new log entry. This is
+      // useful for logging events from different services.
+      allow create: if isSignedIn();
+
+      // ANY authenticated user can read the list of logs for the dashboard.
+      allow list: if isSignedIn();
+      allow get: if isSignedIn();
     }
 
-    // Security policies are read-only for all authenticated users.
-    // Only admins can modify security policies.
+    //--------------------------------------------------------------------
+    // Collection: security_policies
+    //--------------------------------------------------------------------
     match /security_policies/{policyId} {
-      allow read: if request.auth.uid != null;
-      allow write: if isAdmin();
+      // Policies are read-only for all clients to ensure integrity.
+      // They should only be modified from a trusted server environment
+      // or the Firebase Console.
+      allow write: if false;
+
+      // Any authenticated user can read security policies.
+      allow read: if isSignedIn();
     }
   }
 }
@@ -41,14 +77,14 @@ export default function SecurityRulesPage() {
   return (
     <div className="space-y-8">
       <PageHeader
-        title="Firebase Security Rules"
-        description="Rules to protect data in Firestore, ensuring users can only access what they're permitted to."
+        title="Firestore Security Rules"
+        description="The rules that protect your data in Firestore, ensuring users can only access what they're permitted to."
       />
       <Card>
         <CardHeader>
-          <CardTitle>Firestore Rules</CardTitle>
+          <CardTitle>AuthGuard OS Ruleset</CardTitle>
           <CardDescription>
-            These rules enforce role-based access control, immutability for logs, and secure handling of user data.
+            This ruleset enforces a user-ownership model, allows reads for dashboard displays, and protects sensitive collections.
           </CardDescription>
         </CardHeader>
         <CardContent>

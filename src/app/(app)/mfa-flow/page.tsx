@@ -1,3 +1,4 @@
+
 import { PageHeader } from "@/components/page-header";
 import {
   Card,
@@ -6,33 +7,33 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { ArrowRight, KeyRound, Mail, ShieldCheck, Smartphone, LogIn, ExternalLink } from "lucide-react";
+import { ArrowRight, KeyRound, ShieldCheck, LogIn, ExternalLink } from "lucide-react";
 
 const mfaSteps = [
   {
     icon: <LogIn className="h-6 w-6 text-primary" />,
-    title: "Step 1: Initial Login Request",
-    description: "The user provides their primary credentials (e.g., email and password) to the OS login manager. The OS module calls the 'verifyCredentials()' API.",
+    title: "Step 1: Initial Login",
+    description: "The user provides their primary credentials (e.g., email and password) to the OS login manager. The client authenticates with Firebase Auth.",
   },
   {
     icon: <ShieldCheck className="h-6 w-6 text-primary" />,
-    title: "Step 2: Primary Verification & MFA Check",
-    description: "Firebase verifies the primary credentials. The backend then checks the user's profile in Firestore to see if MFA is enabled ('mfaEnabled: true').",
+    title: "Step 2: MFA Check",
+    description: "The client sends the user's ID token to a secure Cloud Function. The function checks the user's profile in Firestore for 'mfaEnabled: true'.",
   },
   {
     icon: <ExternalLink className="h-6 w-6 text-primary" />,
-    title: "Step 3: Initiate MFA",
-    description: "If MFA is required, the backend calls 'initiateMFA()'. This triggers the sending of a second factor, such as an OTP to a phone, a link to an email, or a challenge to a device key.",
+    title: "Step 3: Initiate MFA Factor",
+    description: "If MFA is required, the backend triggers the appropriate MFA flow, such as sending an OTP to the user's phone or a magic link to their email.",
   },
   {
     icon: <KeyRound className="h-6 w-6 text-primary" />,
-    title: "Step 4: User Provides Second Factor",
-    description: "The user enters the OTP, clicks the verification link, or uses their device key. The OS module sends this information to the backend via the 'validateToken()' API.",
+    title: "Step 4: User Verifies",
+    description: "The user enters the received OTP or clicks the verification link. The client sends this second factor to a validation function on the backend.",
   },
   {
     icon: <ShieldCheck className="h-6 w-6 text-green-500" />,
-    title: "Step 5: Token Issuance & Session Creation",
-    description: "The backend validates the second factor. Upon success, it generates a short-lived custom authentication token and returns it to the OS module, granting the user access.",
+    title: "Step 5: Session Established",
+    description: "The backend validates the second factor. On success, it generates a short-lived custom session token and returns it to the client, granting access.",
   },
 ];
 
@@ -44,37 +45,36 @@ export default function MfaFlowPage() {
         description="The end-to-end process for verifying a user with a second security factor."
       />
 
-      <div className="relative flex flex-col items-center gap-8 lg:gap-0 lg:flex-row lg:justify-between">
-        {mfaSteps.map((step, index) => (
-          <>
-            <Card key={step.title} className="w-full max-w-sm lg:max-w-xs z-10 shadow-lg">
-              <CardHeader>
-                <div className="flex items-center gap-4">
-                  <div className="bg-primary/10 p-3 rounded-full">{step.icon}</div>
-                  <CardTitle>{step.title}</CardTitle>
+      <div className="relative">
+        <div className="absolute left-1/2 top-4 h-full w-px bg-border -translate-x-1/2 lg:hidden" />
+        <div className="absolute top-1/2 left-4 w-full h-px bg-border -translate-y-1/2 hidden lg:flex" />
+
+        <div className="relative flex flex-col items-center gap-12 lg:flex-row lg:justify-between">
+          {mfaSteps.map((step, index) => (
+            <div key={step.title} className="relative z-10 flex w-full max-w-sm lg:max-w-xs items-start gap-4 lg:flex-col lg:items-center lg:gap-2">
+                <div className="bg-primary/10 p-3 rounded-full shrink-0">{step.icon}</div>
+                <div className="lg:text-center">
+                    <h3 className="font-bold">{step.title}</h3>
+                    <p className="text-muted-foreground text-sm mt-1">{step.description}</p>
                 </div>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground text-sm">{step.description}</p>
-              </CardContent>
-            </Card>
-            {index < mfaSteps.length - 1 && (
-              <ArrowRight className="h-8 w-8 text-muted-foreground absolute top-1/2 -translate-y-1/2 transform rotate-90 lg:rotate-0 lg:relative" />
-            )}
-          </>
-        ))}
-         <div className="absolute left-1/2 top-0 h-full w-px bg-border -translate-x-1/2 lg:hidden" />
-         <div className="absolute top-1/2 left-0 w-full h-px bg-border -translate-y-1/2 hidden lg:block" />
+                {index < mfaSteps.length - 1 && (
+                  <ArrowRight className="h-8 w-8 text-muted-foreground absolute top-1/2 right-full mr-4 -translate-y-1/2 transform rotate-90 lg:rotate-0 lg:relative lg:right-auto lg:left-full lg:top-auto lg:bottom-1/2 lg:ml-4 lg:translate-y-8" />
+                )}
+            </div>
+          ))}
+        </div>
       </div>
 
        <Card>
         <CardHeader>
           <CardTitle>Token & Session Management</CardTitle>
+          <CardDescription>How tokens are used to maintain a secure and seamless user session.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 text-muted-foreground">
-            <p><span className="font-semibold text-foreground">Token Expiry:</span> Custom authentication tokens are intentionally short-lived (e.g., 1 hour) to minimize the risk of session hijacking. The OS integration module is responsible for securely storing this token in memory.</p>
-            <p><span className="font-semibold text-foreground">Session Renewal:</span> Before the token expires, the client-side SDK should use its refresh token (managed automatically by the Firebase client SDKs) to silently obtain a new ID token without requiring the user to log in again. This ensures a seamless user experience while maintaining security.</p>
-            <p><span className="font-semibold text-foreground">Logout:</span> When a user logs out, the OS module must explicitly call the sign-out method from the Firebase SDK. This invalidates the current session and clears any stored tokens, preventing unauthorized access.</p>
+            <p><span className="font-semibold text-foreground">ID Tokens (Client-Side):</span> After a standard login, the Firebase client SDK provides an ID Token. This token proves the user's identity to your backend but should not be used for long-term session management. It has a short lifetime (typically 1 hour).</p>
+            <p><span className="font-semibold text-foreground">Custom Session Tokens (Server-Side):</span> After your backend verifies the user (and any MFA factors), it generates a custom, potentially longer-lived session token. This token is what the OS module should store and use for subsequent authenticated requests.</p>
+            <p><span className="font-semibold text-foreground">Session Renewal:</span> The Firebase client SDK automatically handles the refreshing of ID tokens in the background using a long-lived refresh token. This process is seamless to the user. The custom session token, however, must be managed by your application logic.</p>
+            <p><span className="font-semibold text-foreground">Secure Logout:</span> When a user logs out, the client must call the Firebase SDK's sign-out method. On the backend, you should also implement a mechanism to invalidate the custom session token (e.g., by maintaining a denylist of revoked tokens) to prevent replay attacks.</p>
         </CardContent>
       </Card>
     </div>

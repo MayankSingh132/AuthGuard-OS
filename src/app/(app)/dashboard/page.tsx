@@ -8,6 +8,7 @@ import {
   Users,
 } from "lucide-react"
 import Link from "next/link"
+import Image from "next/image"
 import {
   Bar,
   BarChart,
@@ -37,6 +38,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
+import { PlaceHolderImages } from "@/lib/placeholder-images"
 
 const chartData = [
   { date: "3d ago", successful: 186, failed: 80 },
@@ -64,14 +66,30 @@ const recentLogs = [
     { id: "log-005", user: "service-act", status: "Success", type: "API Token", ip: "127.0.0.1", time: "15m ago"},
 ]
 
+const heroImage = PlaceHolderImages.find(p => p.id === 'dashboard-hero');
+
 
 export default function DashboardPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <PageHeader
-        title="System Dashboard"
-        description="An overview of authentication activity and system health."
-      />
+      <div className="relative isolate overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <Image
+          src={heroImage?.imageUrl || "https://picsum.photos/seed/1/1200/400"}
+          alt={heroImage?.description || "Dashboard hero image"}
+          data-ai-hint={heroImage?.imageHint || "abstract security"}
+          width={1200}
+          height={400}
+          className="absolute inset-0 -z-10 h-full w-full object-cover opacity-20"
+        />
+         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-background/80 to-transparent" />
+        <div className="p-8 md:p-12">
+            <PageHeader
+                title="Welcome to AuthGuard OS"
+                description="This is your central hub for monitoring system security, tracking authentication events, and managing user access. Everything you need to maintain a secure operating environment is right at your fingertips."
+            />
+        </div>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
         <Card className="transition-all hover:shadow-lg hover:-translate-y-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -155,11 +173,9 @@ export default function DashboardPage() {
                 <Legend content={({ payload }) => (
                     <div className="flex justify-center space-x-4 pt-4">
                         {payload?.map((entry, index) => (
-                            <div key={`item-${index}`} className="chart-legend">
-                                <div className="chart-legend-item">
-                                    <div className="chart-legend-color" style={{backgroundColor: entry.color}} />
-                                    <span>{entry.value}</span>
-                                </div>
+                            <div key={`item-${index}`} className="flex items-center space-x-2 text-xs text-muted-foreground">
+                                <div className="h-2 w-2 rounded-full" style={{backgroundColor: entry.color}} />
+                                <span>{entry.value}</span>
                             </div>
                         ))}
                     </div>
@@ -234,5 +250,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-    

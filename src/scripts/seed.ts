@@ -18,13 +18,13 @@ const users = [
 ];
 
 const authLogs = [
-    { status: "success", methodUsed: "Password + OTP", ip: "192.168.1.10", threatDetected: false },
-    { status: "success", methodUsed: "Device Key", ip: "10.0.0.5", threatDetected: false },
-    { status: "failure", methodUsed: "Password", ip: "203.0.113.45", threatDetected: false },
-    { status: "failure", methodUsed: "Password", ip: "172.16.0.21", threatDetected: true },
-    { status: "success", methodUsed: "API Token", ip: "127.0.0.1", threatDetected: false },
-    { status: "success", methodUsed: "Password", ip: "192.168.1.12", threatDetected: false },
-    { status: "failure", methodUsed: "Device Key", ip: "10.0.0.8", threatDetected: false },
+    { userId: "system_generic", status: "success", methodUsed: "Password + OTP", ip: "192.168.1.10", threatDetected: false },
+    { userId: "system_generic", status: "success", methodUsed: "Device Key", ip: "10.0.0.5", threatDetected: false },
+    { userId: "system_generic", status: "failure", methodUsed: "Password", ip: "203.0.113.45", threatDetected: false },
+    { userId: "system_generic", status: "failure", methodUsed: "Password", ip: "172.16.0.21", threatDetected: true },
+    { userId: "system_generic", status: "success", methodUsed: "API Token", ip: "127.0.0.1", threatDetected: false },
+    { userId: "system_generic", status: "success", methodUsed: "Password", ip: "192.168.1.12", threatDetected: false },
+    { userId: "system_generic", status: "failure", methodUsed: "Device Key", ip: "10.0.0.8", threatDetected: false },
 ];
 
 
@@ -33,6 +33,16 @@ async function seedDatabase() {
     console.log('Starting to seed database...');
 
     const batch = writeBatch(db);
+
+    // Create some generic logs for anonymous users to see
+    const logsRef = collection(db, "auth_logs");
+    for(const log of authLogs) {
+        const logDocRef = doc(logsRef);
+        batch.set(logDocRef, {
+            ...log,
+            timestamp: new Date(new Date().getTime() - Math.random() * 1000 * 60 * 60 * 24 * 7).toISOString(),
+        });
+    }
 
     // Create users in Firebase Auth and add to batch
     for (const userData of users) {
@@ -50,18 +60,6 @@ async function seedDatabase() {
                 lastLogin: userData.lastLogin,
                 failedAttempts: 0,
             });
-
-            // Create some logs for this user
-            const logsRef = collection(db, "auth_logs");
-            for(let i = 0; i < Math.floor(Math.random() * 5) + 1; i++) {
-                const randomLog = authLogs[Math.floor(Math.random() * authLogs.length)];
-                const logDocRef = doc(logsRef);
-                batch.set(logDocRef, {
-                    ...randomLog,
-                    userId: user.uid,
-                    timestamp: new Date(new Date().getTime() - Math.random() * 1000 * 60 * 60 * 24 * 7).toISOString(),
-                });
-            }
 
         } catch (error: any) {
              if (error.code === 'auth/email-already-in-use') {

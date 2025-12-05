@@ -10,6 +10,7 @@ import {
 } from "lucide-react"
 import Link from "next/link"
 import Image from "next/image"
+import React, { useMemo } from "react"
 import {
   Bar,
   BarChart,
@@ -70,19 +71,19 @@ export default function DashboardPage() {
   const { user } = useUser();
 
   const logsQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore) return null;
     return query(collection(firestore, "auth_logs"), orderBy("timestamp", "desc"), limit(5));
-  }, [firestore, user]);
+  }, [firestore]);
 
   const usersQuery = useMemoFirebase(() => {
-    if (!firestore || !user) return null;
+    if (!firestore) return null;
     return collection(firestore, "users");
-  }, [firestore, user]);
+  }, [firestore]);
 
   const { data: recentLogs, isLoading: isLoadingLogs } = useCollection(logsQuery);
   const { data: users, isLoading: isLoadingUsers } = useCollection(usersQuery);
 
-  const mfaEnabledPercentage = React.useMemo(() => {
+  const mfaEnabledPercentage = useMemo(() => {
     if (!users || users.length === 0) return 0;
     const mfaEnabledCount = users.filter(u => u.mfaEnabled).length;
     return Math.round((mfaEnabledCount / users.length) * 100);
@@ -283,3 +284,5 @@ export default function DashboardPage() {
     </div>
   )
 }
+
+    

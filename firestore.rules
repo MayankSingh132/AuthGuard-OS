@@ -1,0 +1,152 @@
+/**
+ * This ruleset enforces a strict user-ownership security model for an
+ * authentication and security monitoring system. It is designed to be highly
+ * secure while remaining flexible for rapid prototyping.
+ *
+ * Core Philosophy:
+ * The primary security principle is that users can only access and manage their
+ * own data. There is no concept of shared data between users. All write operations
+ * require authentication and are strictly scoped to the authenticated user.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores private user profile data. Each user's document
+ *   is only accessible by that specific user.
+ * - /auth_logs/{logId}: A top-level collection for immutable audit logs of
+ *   authentication events. Users can create and read their own logs but cannot
+ *   modify, delete, or list the logs of others.
+ * - /security_policies/{policyId}: A collection of global security policies
+ *   that are readable by all authenticated users but are not writable, ensuring
+ *   consistent application across the system.
+ *
+ * Key Security Decisions:
+ * - User Isolation: Users are completely isolated from one another. Listing users
+ *   is explicitly disallowed to prevent user enumeration attacks.
+ * - Log Immutability: Authentication logs in `/auth_logs` are write-once and
+ *   cannot be updated or deleted, ensuring the integrity of the audit trail.
+ * - Public Listing Prevention: To prevent data leakage, `list` operations on
+ *   collections containing private user data (`/users`, `/auth_logs`) are disabled.
+ * - Admin-Only Writes: Collections intended for administrative control (like
+ *   `/security_policies`) have all write operations disabled by default, as no
+ *   admin role is formally defined in this iteration. This is a secure-by-default
+ *   posture.
+ * - Denormalization for Authorization: The `/auth_logs/{logId}` documents contain a
+ *   `userId` field. This denormalization is critical for rules to verify log
+ *   ownership without performing costly or insecure cross-collection lookups.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    //-------------------------------------------------------------------------
+    // Helper Functions
+    //-------------------------------------------------------------------------
+
+    /**
+     * Checks if the user is authenticated.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * Checks if the currently authenticated user's UID matches the given userId.
+     * This is the fundamental check for data ownership.
+     */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /**
+     * Checks if the document being accessed already exists and is owned by the
+     * currently authenticated user. Used for safe updates and deletes.
+     */
+    function isExistingOwner(userId) {
+      return isOwner(userId) && resource != null;
+    }
+
+    /**
+     * Validates that the user is creating their own user document and that the
+     * document's internal 'id' field correctly matches their UID.
+     */
+    function isCreatingOwnUserDocument(userId) {
+      return isOwner(userId) && request.resource.data.id == userId;
+    }
+
+    /**
+     * Validates that a user's internal 'id' field is not being changed during an update.
+     * This prevents re-assigning ownership of a document.
+     */
+    function isUserIdImmutable() {
+      return request.resource.data.id == resource.data.id;
+    }
+
+    /**
+     * Validates that a user is creating an authentication log for their own account.
+     */
+    function isCreatingOwnAuthLog() {
+      return isSignedIn() && request.resource.data.userId == request.auth.uid;
+    }
+
+    /**
+     * Validates that the user requesting to read a log is the owner of that log.
+     */
+    function isLogOwner() {
+      return isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+
+    //-------------------------------------------------------------------------
+    // Collection Rules
+    //-------------------------------------------------------------------------
+
+    /**
+     * @description Manages user profile data. Access is strictly limited to the
+     *              document owner. Listing users is disallowed.
+     * @path /users/{userId}
+     * @allow A logged-in user (auth.uid='user123') can (get) or (update) their own document at `/users/user123`.
+     * @deny A logged-in user (auth.uid='user456') is blocked from reading or writing `/users/user123`.
+     * @principle Restricts access to a user's own data tree and enforces relational integrity.
+     */
+    match /users/{userId} {
+      allow get: if isOwner(userId);
+      allow list: if false;
+      allow create: if isCreatingOwnUserDocument(userId);
+      allow update: if isExistingOwner(userId) && isUserIdImmutable();
+      allow delete: if isExistingOwner(userId);
+    }
+
+    /**
+     * @description Stores immutable authentication logs. Users can create logs for
+     *              themselves and read them back individually, but cannot modify
+     *              them or list all logs in the system.
+     * @path /auth_logs/{logId}
+     * @allow A logged-in user (auth.uid='user123') can (create) a log with `{ userId: 'user123' }`.
+     * @deny A logged-in user is blocked from (listing) all documents in `/auth_logs`.
+     * @principle Enforces document ownership for writes and ensures an immutable audit trail.
+     */
+    match /auth_logs/{logId} {
+      allow get: if isLogOwner();
+      allow list: if false;
+      allow create: if isCreatingOwnAuthLog();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    /**
+     * @description Stores global security policies. These are readable by all
+     *              authenticated users but are not writable by clients to ensure
+     *              system-wide policy integrity.
+     * @path /security_policies/{policyId}
+     * @allow Any signed-in user can (get) or (list) documents from this collection.
+     * @deny Any user, signed-in or not, is blocked from (creating), (updating), or (deleting) a policy.
+     * @principle Provides public read access for configuration data with admin-only (disabled) writes.
+     */
+    match /security_policies/{policyId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}

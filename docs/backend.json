@@ -1,0 +1,191 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user account in the system.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "hashedPassword": {
+          "type": "string",
+          "description": "Hashed password of the user.  (Authentication data is not stored here, rather in external auth system.)"
+        },
+        "mfaEnabled": {
+          "type": "boolean",
+          "description": "Indicates if multi-factor authentication is enabled for the user."
+        },
+        "mfaType": {
+          "type": "string",
+          "description": "Type of multi-factor authentication used (e.g., OTP, email, device key)."
+        },
+        "deviceKeys": {
+          "type": "array",
+          "description": "Array of device keys associated with the user.",
+          "items": {
+            "type": "string"
+          }
+        },
+        "lastLogin": {
+          "type": "string",
+          "description": "Timestamp of the user's last successful login.",
+          "format": "date-time"
+        },
+        "failedAttempts": {
+          "type": "number",
+          "description": "Number of failed login attempts for the user."
+        },
+        "securityPolicyId": {
+          "type": "string",
+          "description": "Reference to SecurityPolicy applied to this user. (Relationship: User 1:1 SecurityPolicy)"
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "hashedPassword",
+        "mfaEnabled",
+        "failedAttempts",
+        "securityPolicyId"
+      ]
+    },
+    "AuthLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AuthLog",
+      "type": "object",
+      "description": "Represents an authentication event log.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the authentication log entry."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the User associated with this log. (Relationship: User 1:N AuthLog)"
+        },
+        "timestamp": {
+          "type": "string",
+          "description": "Timestamp of the authentication event.",
+          "format": "date-time"
+        },
+        "methodUsed": {
+          "type": "string",
+          "description": "Authentication method used (e.g., password, OTP)."
+        },
+        "ip": {
+          "type": "string",
+          "description": "IP address of the client during authentication."
+        },
+        "status": {
+          "type": "string",
+          "description": "Status of the authentication event (e.g., success, failure)."
+        },
+        "threatDetected": {
+          "type": "boolean",
+          "description": "Indicates if a threat was detected during authentication."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "timestamp",
+        "methodUsed",
+        "ip",
+        "status",
+        "threatDetected"
+      ]
+    },
+    "SecurityPolicy": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "SecurityPolicy",
+      "type": "object",
+      "description": "Represents a security policy rule.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the security policy."
+        },
+        "rule": {
+          "type": "string",
+          "description": "The security policy rule (e.g., MFA enforcement)."
+        },
+        "severity": {
+          "type": "string",
+          "description": "Severity level of the policy (e.g., high, medium, low)."
+        }
+      },
+      "required": [
+        "id",
+        "rule",
+        "severity"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile data. Path-based ownership ensures only the user (and admins, if applicable) can access this data.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "auth_logs/{logId}",
+        "definition": {
+          "entityName": "AuthLog",
+          "schema": {
+            "$ref": "#/backend/entities/AuthLog"
+          },
+          "description": "Stores authentication logs. Admins can read all logs, while users can only read their own logs. The `userId` field is used to associate logs with users.",
+          "params": [
+            {
+              "name": "logId",
+              "description": "The unique identifier for the authentication log entry."
+            }
+          ]
+        }
+      },
+      {
+        "path": "security_policies/{policyId}",
+        "definition": {
+          "entityName": "SecurityPolicy",
+          "schema": {
+            "$ref": "#/backend/entities/SecurityPolicy"
+          },
+          "description": "Stores security policies applicable to users. Only admins have write access.",
+          "params": [
+            {
+              "name": "policyId",
+              "description": "The unique identifier for the security policy."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support a secure authentication module, \"AuthGuard OS\", with a focus on MFA, credential verification, security event logging, and vulnerability detection. The structure adheres to the core design principles of Authorization Independence, Clarity of Intent, DBAC, and QAPs.  Authorization Independence is achieved by avoiding `get()` calls in the security rules through structural segregation and path-based ownership.  QAPs are supported by segregating data based on access requirements and using path-based ownership for user-specific data.\n\nThe `users` collection stores user profile information, but authentication data like passwords are not stored there. The `users/{userId}` path provides path-based ownership for user-related data. The `auth_logs` collection stores authentication events associated with each user.  The `security_policies` collection stores global security policies applicable to users.\n\nRoles are managed implicitly using path-based ownership. No custom claims are needed since access control is primarily managed through the path structure."
+  }
+}

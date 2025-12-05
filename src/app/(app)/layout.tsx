@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { Fingerprint } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+import { Fingerprint, Loader2 } from 'lucide-react';
 import React, { useEffect } from 'react';
 
 import { navItems } from '@/lib/nav-config.tsx';
@@ -16,40 +16,26 @@ import {
   SidebarMenuButton,
   SidebarTrigger,
 } from '@/components/ui/sidebar';
-import { useUser } from '@/firebase';
+import { useUser, useAuth, initiateAnonymousSignIn } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAuth } from '@/firebase';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
+  const auth = useAuth();
   const { user, isUserLoading } = useUser();
 
   useEffect(() => {
-    // If auth state is not loading and there is no user, redirect to login.
+    // If auth state is not loading and there is no user, sign in anonymously.
     if (!isUserLoading && !user) {
-      router.push('/login');
+      initiateAnonymousSignIn(auth);
     }
-  }, [user, isUserLoading, router]);
+  }, [user, isUserLoading, auth]);
   
-  if (isUserLoading || !user) { // Also show loading state if user is null during redirect
+  if (isUserLoading || !user) { // Show loading state until user is authenticated
     return (
-       <div className="flex min-h-screen">
-        <div className="hidden md:flex flex-col gap-4 w-64 p-4 border-r">
-          <div className="flex items-center gap-2.5 p-2 pr-4">
-              <Skeleton className="h-9 w-9 rounded-lg" />
-              <Skeleton className="h-6 w-32" />
-          </div>
-          <div className="flex flex-col gap-2 mt-4">
-            {Array.from({ length: 9 }).map((_, i) => (
-              <Skeleton key={i} className="h-10 w-full" />
-            ))}
-          </div>
-        </div>
-        <div className="flex-1 p-8">
-            <Skeleton className="h-full w-full" />
-        </div>
-      </div>
+       <div className="flex min-h-screen items-center justify-center">
+         <Loader2 className="h-12 w-12 animate-spin" />
+       </div>
     );
   }
 
@@ -100,7 +86,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <span className="text-lg font-semibold">AuthGuard OS</span>
             </div>
           </header>
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 p-4 sm:p-6 md:p-8">{children}</main>
         </div>
       </div>
     </SidebarProvider>

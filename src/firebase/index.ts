@@ -7,15 +7,15 @@ import { getFirestore } from 'firebase/firestore'
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
+  // If no apps are initialized, initialize a new one.
   if (!getApps().length) {
-    // Always initialize with the config object for reliability in this environment.
     const firebaseApp = initializeApp(firebaseConfig);
     return getSdks(firebaseApp);
   }
-
-  // If already initialized, return the SDKs with the already initialized App
+  // If an app is already initialized, use the existing one.
   return getSdks(getApp());
 }
+
 
 export function getSdks(firebaseApp: FirebaseApp) {
   return {

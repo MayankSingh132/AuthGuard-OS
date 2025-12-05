@@ -12,8 +12,8 @@
  * - /users/{userId}: Stores private user profile data. Each user's document
  *   is only accessible by that specific user.
  * - /auth_logs/{logId}: A top-level collection for immutable audit logs of
- *   authentication events. Users can create and read their own logs but cannot
- *   modify, delete, or list the logs of others.
+ *   authentication events. Authenticated users can create and read logs, but cannot
+ *   modify or delete them.
  * - /security_policies/{policyId}: A collection of global security policies
  *   that are readable by all authenticated users but are not writable, ensuring
  *   consistent application across the system.
@@ -23,8 +23,6 @@
  *   is explicitly disallowed to prevent user enumeration attacks.
  * - Log Immutability: Authentication logs in `/auth_logs` are write-once and
  *   cannot be updated or deleted, ensuring the integrity of the audit trail.
- * - Public Listing Prevention: To prevent data leakage, `list` operations on
- *   collections containing private user data (`/users`, `/auth_logs`) are disabled.
  * - Admin-Only Writes: Collections intended for administrative control (like
  *   `/security_policies`) have all write operations disabled by default, as no
  *   admin role is formally defined in this iteration. This is a secure-by-default
@@ -118,15 +116,15 @@ service cloud.firestore {
     /**
      * @description Stores immutable authentication logs. Users can create logs for
      *              themselves and read them back individually, but cannot modify
-     *              them or list all logs in the system.
+     *              them. Any authenticated user can list the logs for the dashboard.
      * @path /auth_logs/{logId}
      * @allow A logged-in user (auth.uid='user123') can (create) a log with `{ userId: 'user123' }`.
-     * @deny A logged-in user is blocked from (listing) all documents in `/auth_logs`.
+     * @allow Any logged-in user can list all documents in /auth_logs.
      * @principle Enforces document ownership for writes and ensures an immutable audit trail.
      */
     match /auth_logs/{logId} {
       allow get: if isLogOwner();
-      allow list: if false;
+      allow list: if isSignedIn();
       allow create: if isCreatingOwnAuthLog();
       allow update: if false;
       allow delete: if false;

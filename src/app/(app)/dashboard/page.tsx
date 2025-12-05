@@ -38,7 +38,7 @@ import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { PlaceHolderImages } from "@/lib/placeholder-images"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { useCollection, useFirestore, useMemoFirebase, useUser } from "@/firebase"
 import { collection, limit, orderBy, query } from "firebase/firestore"
 import { Skeleton } from "@/components/ui/skeleton"
 import { formatDistanceToNow } from "date-fns"
@@ -66,14 +66,20 @@ const heroImage = PlaceHolderImages.find(p => p.id === 'dashboard-hero');
 
 export default function DashboardPage() {
   const firestore = useFirestore();
+  const { user } = useUser();
 
   const logsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !user) return null;
     return query(collection(firestore, "auth_logs"), orderBy("timestamp", "desc"), limit(5));
-  }, [firestore]);
+  }, [firestore, user]);
+
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore || !user) return null;
+    return collection(firestore, "users");
+  }, [firestore, user]);
 
   const { data: recentLogs, isLoading: isLoadingLogs } = useCollection(logsQuery);
-  const { data: users, isLoading: isLoadingUsers } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]));
+  const { data: users, isLoading: isLoadingUsers } = useCollection(usersQuery);
 
   return (
     <div className="flex flex-1 flex-col">

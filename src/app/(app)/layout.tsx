@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Fingerprint } from "lucide-react";
 
-import { navItems } from "@/lib/nav-config";
+import { navItems } from "@/lib/nav-config.tsx";
 import {
   SidebarProvider,
   Sidebar,
@@ -61,7 +61,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <span className="text-lg font-semibold">AuthGuard OS</span>
             </div>
           </header>
-          <main className="flex flex-1 flex-col p-4 sm:px-6 md:p-8">
+          <main className="flex-1 p-4 sm:px-6 md:p-8">
             {children}
           </main>
         </div>

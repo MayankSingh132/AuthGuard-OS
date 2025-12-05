@@ -71,8 +71,8 @@ const heroImage = PlaceHolderImages.find(p => p.id === 'dashboard-hero');
 
 export default function DashboardPage() {
   return (
-    <div className="flex flex-1 flex-col gap-4 md:gap-8">
-      <div className="relative isolate overflow-hidden rounded-2xl border bg-card shadow-sm">
+    <div className="flex flex-1 flex-col gap-4 md:gap-8 -m-4 sm:-mx-6 md:-m-8">
+      <div className="relative isolate overflow-hidden rounded-none border-b bg-card shadow-sm">
         <Image
           src={heroImage?.imageUrl || "https://picsum.photos/seed/1/1200/400"}
           alt={heroImage?.description || "Dashboard hero image"}
@@ -90,7 +90,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 md:gap-8 lg:grid-cols-4 px-4 sm:px-6 md:px-8">
         <Card className="transition-all hover:shadow-lg hover:-translate-y-1">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Users</CardTitle>
@@ -142,7 +142,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
-      <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3">
+      <div className="grid gap-4 md:gap-8 lg:grid-cols-2 xl:grid-cols-3 px-4 sm:px-6 md:px-8">
         <Card className="xl:col-span-2">
           <CardHeader>
             <CardTitle>Login Attempts Overview</CardTitle>

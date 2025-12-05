@@ -18,27 +18,21 @@ import {
 } from '@/components/ui/sidebar';
 import { useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
-import { initiateAnonymousSignIn, useAuth } from '@/firebase';
+import { useAuth } from '@/firebase';
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const auth = useAuth();
   const { user, isUserLoading } = useUser();
 
   useEffect(() => {
+    // If auth state is not loading and there is no user, redirect to login.
     if (!isUserLoading && !user) {
-      // If user is not logged in and not loading, check if they are anonymous
-      // If not, redirect to login
-      if (auth.currentUser && auth.currentUser.isAnonymous) {
-        // already handling anon
-      } else {
-        initiateAnonymousSignIn(auth);
-      }
+      router.push('/login');
     }
-  }, [user, isUserLoading, router, auth]);
+  }, [user, isUserLoading, router]);
   
-  if (isUserLoading) {
+  if (isUserLoading || !user) { // Also show loading state if user is null during redirect
     return (
        <div className="flex min-h-screen">
         <div className="hidden md:flex flex-col gap-4 w-64 p-4 border-r">

@@ -15,9 +15,11 @@ export default function Home() {
     );
   }
 
-  if (!user || user.isAnonymous) {
-    redirect('/login');
-  } else {
+  // If there is a user and they are not anonymous, go to the dashboard.
+  // Otherwise, they must log in.
+  if (user && !user.isAnonymous) {
     redirect('/dashboard');
+  } else {
+    redirect('/login');
   }
 }

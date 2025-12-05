@@ -1,3 +1,5 @@
+"use client"
+
 import {
   MoreHorizontal,
   PlusCircle,
@@ -30,56 +32,24 @@ import {
 } from "@/components/ui/table"
 import { PageHeader } from "@/components/page-header"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { collection, orderBy, query } from "firebase/firestore"
+import { Skeleton } from "@/components/ui/skeleton"
+import { format } from "date-fns"
 
-const users = [
-  {
-    name: "Olivia Martin",
-    email: "olivia.martin@email.com",
-    role: "Admin",
-    mfa: "Enabled",
-    lastLogin: "2024-07-20 10:30 AM",
-    avatar: "/avatars/01.png",
-    initials: "OM",
-  },
-  {
-    name: "Liam Johnson",
-    email: "liam.johnson@email.com",
-    role: "User",
-    mfa: "Enabled",
-    lastLogin: "2024-07-20 09:45 AM",
-    avatar: "/avatars/02.png",
-    initials: "LJ",
-  },
-  {
-    name: "Noah Williams",
-    email: "noah.williams@email.com",
-    role: "User",
-    mfa: "Disabled",
-    lastLogin: "2024-07-19 08:15 PM",
-    avatar: "/avatars/03.png",
-    initials: "NW",
-  },
-  {
-    name: "Emma Brown",
-    email: "emma.brown@email.com",
-    role: "User",
-    mfa: "Enabled",
-    lastLogin: "2024-07-20 11:00 AM",
-    avatar: "/avatars/04.png",
-    initials: "EB",
-  },
-  {
-    name: "Service Account",
-    email: "svc-runner@os.local",
-    role: "Service",
-    mfa: "N/A",
-    lastLogin: "2024-07-20 11:10 AM",
-    avatar: "",
-    initials: "SA",
-  },
-]
 
 export default function UsersPage() {
+
+  const firestore = useFirestore();
+
+  const usersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, "users"), orderBy("lastLogin", "desc"));
+  }, [firestore]);
+
+  const { data: users, isLoading: isLoadingUsers } = useCollection(usersQuery);
+
+
   return (
     <div className="flex flex-col gap-4 md:gap-8">
       <PageHeader
@@ -119,17 +89,42 @@ export default function UsersPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.email}>
+              {isLoadingUsers && Array.from({ length: 5 }).map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell>
+                    <div className="flex items-center gap-4">
+                        <Skeleton className="h-9 w-9 rounded-full" />
+                        <div className="grid gap-1">
+                          <Skeleton className="h-5 w-24" />
+                          <Skeleton className="h-4 w-32" />
+                        </div>
+                      </div>
+                  </TableCell>
+                   <TableCell>
+                      <Skeleton className="h-6 w-16" />
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                      <Skeleton className="h-6 w-20" />
+                  </TableCell>
+                  <TableCell className="hidden md:table-cell">
+                     <Skeleton className="h-5 w-32" />
+                  </TableCell>
+                  <TableCell>
+                     <Skeleton className="h-8 w-8" />
+                  </TableCell>
+                </TableRow>
+              ))}
+              {users?.map((user) => (
+                <TableRow key={user.id}>
                   <TableCell>
                     <div className="flex items-center gap-4">
                         <Avatar className="hidden h-9 w-9 sm:flex">
-                          <AvatarImage src={user.avatar} alt="Avatar" />
-                          <AvatarFallback>{user.initials}</AvatarFallback>
+                          <AvatarImage src={`https://avatar.vercel.sh/${user.email}.png`} alt="Avatar" />
+                          <AvatarFallback>{user.email.substring(0,2).toUpperCase()}</AvatarFallback>
                         </Avatar>
                         <div className="grid gap-1">
                           <p className="text-sm font-medium leading-none">
-                            {user.name}
+                            {user.email.split('@')[0]}
                           </p>
                           <p className="text-sm text-muted-foreground">
                             {user.email}
@@ -138,20 +133,20 @@ export default function UsersPage() {
                       </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.role === 'Admin' ? 'default' : 'secondary'}>{user.role}</Badge>
+                    <Badge variant={'secondary'}>User</Badge>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <Badge
                       variant={
-                        user.mfa === "Enabled" ? "outline" : "destructive"
+                        user.mfaEnabled ? "outline" : "destructive"
                       }
-                      className={user.mfa === 'Enabled' ? 'border-green-600 text-green-600' : ''}
+                      className={user.mfaEnabled ? 'border-green-600 text-green-600' : ''}
                     >
-                      {user.mfa}
+                      {user.mfaEnabled ? 'Enabled' : 'Disabled'}
                     </Badge>
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
-                    {user.lastLogin}
+                    {user.lastLogin ? format(new Date(user.lastLogin), "PPpp") : 'Never'}
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -180,7 +175,7 @@ export default function UsersPage() {
         </CardContent>
         <CardFooter>
           <div className="text-xs text-muted-foreground">
-            Showing <strong>1-5</strong> of <strong>{users.length}</strong> users
+            Showing <strong>1-{users?.length || 0}</strong> of <strong>{users?.length || 0}</strong> users
           </div>
         </CardFooter>
       </Card>

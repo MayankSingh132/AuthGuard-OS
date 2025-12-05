@@ -14,7 +14,6 @@ import {
   BarChart,
   CartesianGrid,
   Legend,
-  ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
@@ -39,6 +38,10 @@ import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { ChartContainer, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart"
 import { PlaceHolderImages } from "@/lib/placeholder-images"
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase"
+import { collection, limit, orderBy, query } from "firebase/firestore"
+import { Skeleton } from "@/components/ui/skeleton"
+import { formatDistanceToNow } from "date-fns"
 
 const chartData = [
   { date: "3d ago", successful: 186, failed: 80 },
@@ -58,18 +61,20 @@ const chartConfig = {
   },
 } satisfies ChartConfig
 
-const recentLogs = [
-    { id: "log-001", user: "admin@os.local", status: "Success", type: "Password + OTP", ip: "192.168.1.10", time: "2m ago"},
-    { id: "log-002", user: "user@os.local", status: "Success", type: "Device Key", ip: "10.0.0.5", time: "5m ago"},
-    { id: "log-003", user: "guest", status: "Failed", type: "Password", ip: "203.0.113.45", time: "10m ago"},
-    { id: "log-004", user: "root", status: "Failed", type: "Trapdoor Detected", ip: "172.16.0.21", time: "12m ago"},
-    { id: "log-005", user: "service-act", status: "Success", type: "API Token", ip: "127.0.0.1", time: "15m ago"},
-]
-
 const heroImage = PlaceHolderImages.find(p => p.id === 'dashboard-hero');
 
 
 export default function DashboardPage() {
+  const firestore = useFirestore();
+
+  const logsQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    return query(collection(firestore, "auth_logs"), orderBy("timestamp", "desc"), limit(5));
+  }, [firestore]);
+
+  const { data: recentLogs, isLoading: isLoadingLogs } = useCollection(logsQuery);
+  const { data: users, isLoading: isLoadingUsers } = useCollection(useMemoFirebase(() => firestore ? collection(firestore, "users") : null, [firestore]));
+
   return (
     <div className="flex flex-1 flex-col">
       <div className="relative isolate overflow-hidden rounded-none border-b bg-card shadow-sm">
@@ -97,7 +102,7 @@ export default function DashboardPage() {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1,254</div>
+              {isLoadingUsers ? <Skeleton className="h-8 w-24" /> : <div className="text-2xl font-bold">{users?.length || 0}</div>}
               <p className="text-xs text-muted-foreground">+20 since last month</p>
             </CardContent>
           </Card>
@@ -135,7 +140,7 @@ export default function DashboardPage() {
               <ShieldCheck className="h-4 w-4 text-primary" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">92%</div>
+            {isLoadingUsers ? <Skeleton className="h-8 w-20" /> : <div className="text-2xl font-bold">{Math.round(((users?.filter(u => u.mfaEnabled).length || 0) / (users?.length || 1)) * 100)}%</div>}
               <p className="text-xs text-muted-foreground">
                 4% increase from last month
               </p>
@@ -223,23 +228,37 @@ export default function DashboardPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentLogs.map((log) => (
+                {isLoadingLogs && Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <Skeleton className="h-5 w-24" />
+                      <Skeleton className="h-4 w-32 mt-1" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="h-6 w-20 rounded-full" />
+                    </TableCell>
+                    <TableCell className="text-right">
+                       <Skeleton className="h-5 w-16" />
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {recentLogs?.map((log) => (
                   <TableRow key={log.id}>
                     <TableCell>
-                      <div className="font-medium">{log.user}</div>
+                      <div className="font-medium">{log.userId.substring(0,12)}...</div>
                       <div className="text-xs text-muted-foreground">
                         {log.ip}
                       </div>
                     </TableCell>
                     <TableCell>
                       <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                          log.status === "Success" ? "bg-green-500/10 text-green-700 dark:text-green-400" 
+                          log.status === "success" ? "bg-green-500/10 text-green-700 dark:text-green-400" 
                           : "bg-red-500/10 text-red-700 dark:text-red-400"
                       }`}>
                           {log.status}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right">{log.time}</TableCell>
+                    <TableCell className="text-right">{formatDistanceToNow(new Date(log.timestamp), { addSuffix: true })}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

@@ -71,7 +71,7 @@ const heroImage = PlaceHolderImages.find(p => p.id === 'dashboard-hero');
 
 export default function DashboardPage() {
   return (
-    <div className="flex flex-1 flex-col gap-4 md:gap-8 -m-4 sm:-mx-6 md:-m-8">
+    <div className="flex flex-1 flex-col gap-4 md:gap-8">
       <div className="relative isolate overflow-hidden rounded-none border-b bg-card shadow-sm">
         <Image
           src={heroImage?.imageUrl || "https://picsum.photos/seed/1/1200/400"}

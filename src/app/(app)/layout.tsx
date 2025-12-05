@@ -62,7 +62,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <span className="text-lg font-semibold">AuthGuard OS</span>
             </div>
           </header>
-          <main className="flex flex-1 flex-col gap-4 p-4 sm:px-6 md:gap-8">
+          <main className="flex flex-1 flex-col">
             {children}
           </main>
         </SidebarInset>
